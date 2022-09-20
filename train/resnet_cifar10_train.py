@@ -1,8 +1,8 @@
-from models.mlp import MLP
 import argparse
 import torch
+from models.resnet import resnet20
 import torch.optim as optim
-from torchvision import datasets, transforms, models
+from torchvision import datasets, transforms
 from utils.training import train, test
 
 def main():
@@ -56,7 +56,7 @@ def main():
     test_loader = torch.utils.data.DataLoader(testset, batch_size=args.batch_size,
                                             shuffle=False, num_workers=2)
 
-    model = models.resnet18(pretrained=False, num_classes=10).to(device)
+    model = resnet20().to(device)
     if args.opt == "adam":
         optimizer = optim.Adam(model.parameters(), lr=args.lr)
     else:

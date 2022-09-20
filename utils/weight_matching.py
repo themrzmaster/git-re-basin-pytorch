@@ -47,10 +47,10 @@ def cnn_permutation_spec() -> PermutationSpec:
 
 
 
-def resnet18_permutation_spec() -> PermutationSpec:
+def resnet20_permutation_spec() -> PermutationSpec:
     conv = lambda name, p_in, p_out: {f"{name}.weight": (p_out, p_in, None, None, )}
     norm = lambda name, p: {f"{name}.weight": (p, ), f"{name}.bias": (p, ), f"{name}.running_mean": (p, ),  f"{name}.running_var": (p, ), f"{name}.num_batches_tracked": (),}
-    dense = lambda name, p_in, p_out, bias = True: {f"{name}.weight": (p_out, p_in), f"{name}.bias": (p_out, )}
+    dense = lambda name, p_in, p_out: {f"{name}.weight": (p_out, p_in), f"{name}.bias": (p_out, )}
 
     # This is for easy blocks that use a residual connection, without any change in the number of channels.
     easyblock = lambda name, p: {
@@ -66,8 +66,8 @@ def resnet18_permutation_spec() -> PermutationSpec:
     **norm(f"{name}.bn1", f"P_{name}_inner"),
     **conv(f"{name}.conv2", f"P_{name}_inner", p_out),
     **norm(f"{name}.bn2", p_out),
-    **conv(f"{name}.downsample.0", p_in, p_out),
-    **norm(f"{name}.downsample.1", p_out),
+    **conv(f"{name}.shortcut.0", p_in, p_out),
+    **norm(f"{name}.shortcut.1", p_out),
     }
 
     return permutation_spec_from_axes_to_perm({
@@ -76,18 +76,17 @@ def resnet18_permutation_spec() -> PermutationSpec:
     #
     **easyblock("layer1.0", "P_bg0"),
     **easyblock("layer1.1", "P_bg0"),
+    **easyblock("layer1.2", "P_bg0"),
     #
     **shortcutblock("layer2.0", "P_bg0", "P_bg1"),
     **easyblock("layer2.1", "P_bg1"),
+    **easyblock("layer2.2", "P_bg1"),
     #
     **shortcutblock("layer3.0", "P_bg1", "P_bg2"),
     **easyblock("layer3.1", "P_bg2"),
+    **easyblock("layer3.2", "P_bg2"),
     #
-    **shortcutblock("layer4.0", "P_bg2", "P_bg3"),
-    **easyblock("layer4.1", "P_bg3"),
-
-    #
-    **dense("fc", "P_bg3", None, False),
+    **dense("linear", "P_bg2", None),
   })
   
 
@@ -159,8 +158,6 @@ def weight_matching(ps: PermutationSpec, params_a, params_b, max_iter=100, init_
       A = torch.zeros((n, n))
       for wk, axis in ps.perm_to_axes[p]:
         w_a = params_a[wk]
-        print(wk)
-        print(axis)
         w_b = get_permuted_param(ps, perm, wk, params_b, except_axis=axis)
         w_a = torch.moveaxis(w_a, axis, 0).reshape((n, -1))
         w_b = torch.moveaxis(w_b, axis, 0).reshape((n, -1))

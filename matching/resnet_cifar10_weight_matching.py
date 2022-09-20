@@ -1,8 +1,9 @@
-from utils.weight_matching import resnet18_permutation_spec, weight_matching, apply_permutation
+from utils.weight_matching import resnet20_permutation_spec, weight_matching, apply_permutation
 from utils.utils import  lerp
 from utils.plot import plot_interp_acc
 import argparse
 import torch
+from models.resnet import resnet20
 from torchvision import datasets, transforms, models
 from utils.training import test
 from tqdm import tqdm
@@ -18,14 +19,14 @@ def main():
     args = parser.parse_args()
 
     # load models
-    model_a = models.resnet18(pretrained=False, num_classes=10)
-    model_b = models.resnet18(pretrained=False, num_classes=10)
+    model_a = resnet20()
+    model_b = resnet20()
     checkpoint = torch.load(args.model_a)
     model_a.load_state_dict(checkpoint)   
     checkpoint_b = torch.load(args.model_b)
     model_b.load_state_dict(checkpoint_b)
 
-    permutation_spec = resnet18_permutation_spec()
+    permutation_spec = resnet20_permutation_spec()
     final_permutation = weight_matching(permutation_spec,
                                         model_a.state_dict(), model_b.state_dict())
               
