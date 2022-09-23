@@ -1,6 +1,6 @@
 import argparse
 import torch
-from models.resnet import resnet20
+from models.resnet import ResNet
 import torch.optim as optim
 from torchvision import datasets, transforms
 from utils.training import train, test
@@ -10,6 +10,7 @@ def main():
     parser.add_argument('--seed', type=int, default=1)
     parser.add_argument('--batch_size', type=int, default=100)
     parser.add_argument('--opt', type=str, default='adam')
+    parser.add_argument('--width-multiplier', type=int, default=2)
     parser.add_argument('--epochs', type=int, default=100)
     parser.add_argument("--lr", type=float, required=True)
     parser.add_argument('--log-interval', type=int, default=10, metavar='N',help='how many batches to wait before logging training status')
@@ -56,7 +57,7 @@ def main():
     test_loader = torch.utils.data.DataLoader(testset, batch_size=args.batch_size,
                                             shuffle=False, num_workers=2)
 
-    model = resnet20().to(device)
+    model = ResNet(22, args.width_multiplier, 0, num_classes=10).to(device)
     if args.opt == "adam":
         optimizer = optim.Adam(model.parameters(), lr=args.lr)
     else:
@@ -68,7 +69,7 @@ def main():
         test(model, device, test_loader, True)
         scheduler.step()
 
-    torch.save(model.state_dict(), f"cifar10_{str(args.seed)}_resnet.pt")
+    torch.save(model.state_dict(), f"cifar10_{str(args.seed)}_resnet_{str(args.width_multiplier)}.pt")
 
 
 if __name__ == "__main__":
