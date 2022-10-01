@@ -47,7 +47,7 @@ def cnn_permutation_spec() -> PermutationSpec:
 
 
 
-def wideresnet_permutation_spec() -> PermutationSpec:
+def resnet20_permutation_spec() -> PermutationSpec:
   conv = lambda name, p_in, p_out: {f"{name}.weight": (p_out, p_in, None, None, )}
   norm = lambda name, p: {f"{name}.weight": (p, ), f"{name}.bias": (p, )}
   dense = lambda name, p_in, p_out: {f"{name}.weight": (p_out, p_in), f"{name}.bias": (p_out, )}
@@ -94,6 +94,67 @@ def wideresnet_permutation_spec() -> PermutationSpec:
 
 })
 
+# should be easy to generalize it to any depth
+def resnet50_permutation_spec() -> PermutationSpec:
+  conv = lambda name, p_in, p_out: {f"{name}.weight": (p_out, p_in, None, None, )}
+  norm = lambda name, p: {f"{name}.weight": (p, ), f"{name}.bias": (p, )}
+  dense = lambda name, p_in, p_out: {f"{name}.weight": (p_out, p_in), f"{name}.bias": (p_out, )}
+
+  # This is for easy blocks that use a residual connection, without any change in the number of channels.
+  easyblock = lambda name, p: {
+  **norm(f"{name}.bn1", p),
+  **conv(f"{name}.conv1", p, f"P_{name}_inner"),
+  **norm(f"{name}.bn2", f"P_{name}_inner"),
+  **conv(f"{name}.conv2", f"P_{name}_inner", p),
+  }
+
+  # This is for blocks that use a residual connection, but change the number of channels via a Conv.
+  shortcutblock = lambda name, p_in, p_out: {
+  **norm(f"{name}.bn1", p_in),
+  **conv(f"{name}.conv1", p_in, f"P_{name}_inner"),
+  **norm(f"{name}.bn2", f"P_{name}_inner"),
+  **conv(f"{name}.conv2", f"P_{name}_inner", p_out),
+  **conv(f"{name}.shortcut.0", p_in, p_out),
+  **norm(f"{name}.shortcut.1", p_out),
+  }
+
+  return permutation_spec_from_axes_to_perm({
+    **conv("conv1", None, "P_bg0"),
+    #
+    **shortcutblock("layer1.0", "P_bg0", "P_bg1"),
+    **easyblock("layer1.1", "P_bg1",),
+    **easyblock("layer1.2", "P_bg1"),
+    **easyblock("layer1.3", "P_bg1"),
+    **easyblock("layer1.4", "P_bg1"),
+    **easyblock("layer1.5", "P_bg1"),
+    **easyblock("layer1.6", "P_bg1"),
+    **easyblock("layer1.7", "P_bg1"),
+
+    #**easyblock("layer1.3", "P_bg1"),
+
+    **shortcutblock("layer2.0", "P_bg1", "P_bg2"),
+    **easyblock("layer2.1", "P_bg2",),
+    **easyblock("layer2.2", "P_bg2"),
+    **easyblock("layer2.3", "P_bg2"),
+    **easyblock("layer2.4", "P_bg2"),
+    **easyblock("layer2.5", "P_bg2"),
+    **easyblock("layer2.6", "P_bg2"),
+    **easyblock("layer2.7", "P_bg2"),
+
+    **shortcutblock("layer3.0", "P_bg2", "P_bg3"),
+    **easyblock("layer3.1", "P_bg3",),
+    **easyblock("layer3.2", "P_bg3"),
+    **easyblock("layer3.3", "P_bg3"),
+    **easyblock("layer3.4", "P_bg3"),
+    **easyblock("layer3.5", "P_bg3"),
+    **easyblock("layer3.6", "P_bg3"),
+    **easyblock("layer3.7", "P_bg3"),
+
+    **norm("bn1", "P_bg3"),
+
+    **dense("linear", "P_bg3", None),
+
+})
 
 
 

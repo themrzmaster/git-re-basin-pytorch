@@ -1,4 +1,4 @@
-from utils.weight_matching import weight_matching, apply_permutation, wideresnet_permutation_spec
+from utils.weight_matching import weight_matching, apply_permutation, resnet20_permutation_spec, resnet50_permutation_spec
 from utils.utils import  lerp
 from utils.plot import plot_interp_acc
 import argparse
@@ -17,17 +17,25 @@ def main():
     parser.add_argument("--model_b", type=str, required=True)
     parser.add_argument("--seed", type=int, default=0, help="Random seed")
     parser.add_argument('--width-multiplier', type=int, default=2)
+    parser.add_argument('--depth', type=int, default=22)
     args = parser.parse_args()
 
     # load models
-    model_a = ResNet(22, args.width_multiplier, 0, num_classes=10)
-    model_b = ResNet(22, args.width_multiplier, 0, num_classes=10)
+    model_a = ResNet(args.depth, args.width_multiplier, 0, num_classes=10)
+    model_b = ResNet(args.depth, args.width_multiplier, 0, num_classes=10)
     checkpoint = torch.load(args.model_a)
     model_a.load_state_dict(checkpoint)   
     checkpoint_b = torch.load(args.model_b)
     model_b.load_state_dict(checkpoint_b)
 
-    permutation_spec = wideresnet_permutation_spec()
+    if args.depth == 22:
+      permutation_spec = resnet20_permutation_spec()
+    elif args.depth == 52:
+      permutation_spec = resnet50_permutation_spec()
+    else:
+      print("invalid depth")
+      return
+
     final_permutation = weight_matching(permutation_spec,
                                         model_a.state_dict(), model_b.state_dict())
               
@@ -85,7 +93,7 @@ def main():
 
     fig = plot_interp_acc(lambdas, train_acc_interp_naive, test_acc_interp_naive,
                     train_acc_interp_clever, test_acc_interp_clever)
-    plt.savefig(f"cifar10_resnet_{str(args.width_multiplier)}_weight_matching_interp_accuracy_epoch.png", dpi=300)
+    plt.savefig(f"cifar10_resnet{str(args.depth)}_{str(args.width_multiplier)}_weight_matching_interp_accuracy_epoch.png", dpi=300)
 
 if __name__ == "__main__":
   main()
